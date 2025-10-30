@@ -1,0 +1,20 @@
+# 釘釘-Notion 雙向同步系統依賴
+
+# HTTP 請求
+requests>=2.31.0
+
+# 異步 Web 框架
+aiohttp>=3.9.0
+
+# YAML 配置解析
+PyYAML>=6.0
+
+# 加密解密
+pycryptodome>=3.19.0
+
+# 日誌 (標準庫,無需安裝)
+# logging
+
+# 日期時間 (標準庫,無需安裝)
+# datetime
+

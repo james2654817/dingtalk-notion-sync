@@ -1,0 +1,27 @@
+# 釘釘-Notion 雙向同步配置文件
+# 
+# 重要: 請將此文件複製為 config.yaml 並填入實際值
+# 或者使用環境變數 (推薦用於 Railway 部署)
+
+dingtalk:
+  app_key: "${DINGTALK_APP_KEY}"
+  app_secret: "${DINGTALK_APP_SECRET}"
+  user_id: "${DINGTALK_USER_ID}"
+
+notion:
+  token: "${NOTION_TOKEN}"
+  personal_todo_database_id: "${NOTION_PERSONAL_DB_ID}"
+  team_task_database_id: "${NOTION_TEAM_DB_ID}"
+  polling_interval: 30
+
+webhook:
+  enabled: true
+  host: "0.0.0.0"
+  port: ${PORT:-8080}
+  aes_key: "${DINGTALK_AES_KEY}"
+  token: "${DINGTALK_TOKEN}"
+
+sync:
+  direction: "bidirectional"
+  conflict_resolution: "notion_priority"
+
