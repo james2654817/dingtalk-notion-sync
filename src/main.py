@@ -45,7 +45,7 @@ async def main():
         # 初始化 Webhook 服務器
         webhook_server = WebhookServer(
             sync_service=sync_service,
-            config=config['dingtalk']['webhook']
+            config=config['webhook']
         )
         
         # 啟動服務
@@ -56,7 +56,7 @@ async def main():
         polling_task = asyncio.create_task(sync_service.start_notion_polling())
         
         logger.info("系統已成功啟動,正在運行中...")
-        logger.info(f"Webhook 服務器監聽端口: {config['dingtalk']['webhook']['port']}")
+        logger.info(f"Webhook 服務器監聽端口: {config['webhook']['port']}")
         logger.info(f"Notion 輪詢間隔: {config['notion']['polling_interval']} 秒")
         
         # 等待任務完成 (通常不會完成,除非出錯或手動停止)
