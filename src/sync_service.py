@@ -39,7 +39,7 @@ class SyncService:
     
     async def start_notion_polling(self):
         """啟動 Notion 輪詢服務"""
-        interval = self.config['notion']['polling_interval']
+        interval = self.config['polling']['interval']
         self.logger.info(f"Notion 輪詢服務已啟動,間隔 {interval} 秒")
         
         while True:
