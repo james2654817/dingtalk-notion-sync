@@ -45,14 +45,17 @@ async def main():
             config=config
         )
         
-        # 啟動 Notion 輪詢服務
-        logger.info("正在啟動 Notion 輪詢服務...")
+        # 啟動雙向輪詢服務
+        logger.info("正在啟動雙向輪詢服務...")
         logger.info(f"輪詢間隔: {config['polling']['interval']} 秒")
         logger.info("系統已成功啟動,正在運行中...")
         logger.info("提示: 按 Ctrl+C 停止服務")
         
-        # 執行輪詢
-        await sync_service.start_notion_polling()
+        # 同時執行 Notion 和釘釘輪詢
+        await asyncio.gather(
+            sync_service.start_notion_polling(),
+            sync_service.start_dingtalk_polling()
+        )
         
     except KeyboardInterrupt:
         logger.info("收到停止信號,正在關閉服務...")
