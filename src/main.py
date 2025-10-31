@@ -57,7 +57,7 @@ async def main():
         
         logger.info("系統已成功啟動,正在運行中...")
         logger.info(f"Webhook 服務器監聽端口: {config['webhook']['port']}")
-        logger.info(f"Notion 輪詢間隔: {config['notion']['polling_interval']} 秒")
+        logger.info(f"Notion 輪詢間隔: {config['polling']['interval']} 秒")
         
         # 等待任務完成 (通常不會完成,除非出錯或手動停止)
         await asyncio.gather(webhook_task, polling_task)
