@@ -2,7 +2,7 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "python3 src/main_simple.py"
+startCommand = "python3 src/main.py"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
