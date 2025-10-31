@@ -33,7 +33,7 @@ class WebhookServer:
         
         # 創建 web 應用
         self.app = web.Application()
-        self.app.router.add_post('/webhook', self.handle_webhook)
+        self.app.router.add_post('/webhook/dingtalk', self.handle_webhook)
     
     async def start(self):
         """啟動 Webhook 服務器"""
