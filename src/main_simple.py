@@ -47,7 +47,7 @@ async def main():
         
         # 啟動 Notion 輪詢服務
         logger.info("正在啟動 Notion 輪詢服務...")
-        logger.info(f"輪詢間隔: {config['notion']['polling_interval']} 秒")
+        logger.info(f"輪詢間隔: {config['polling']['interval']} 秒")
         logger.info("系統已成功啟動,正在運行中...")
         logger.info("提示: 按 Ctrl+C 停止服務")
         
