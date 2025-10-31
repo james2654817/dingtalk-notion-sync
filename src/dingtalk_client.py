@@ -197,4 +197,38 @@ class DingTalkClient:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         return response.json()
+    
+    def list_todo_tasks(
+        self,
+        is_done: Optional[bool] = None,
+        next_token: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        查詢用戶待辦任務列表
+        
+        Args:
+            is_done: 待辦完成狀態 (True:已完成, False:未完成, None:全部)
+            next_token: 分頁游標
+            
+        Returns:
+            待辦任務列表和下一頁token
+        """
+        url = f"{self.BASE_URL}/v1.0/todo/users/{self.user_union_id}/org/tasks/query"
+        headers = {
+            "x-acs-dingtalk-access-token": self.get_access_token(),
+            "Content-Type": "application/json"
+        }
+        
+        body = {}
+        if is_done is not None:
+            body["isDone"] = is_done
+        if next_token:
+            body["nextToken"] = next_token
+        
+        response = requests.post(url, headers=headers, json=body)
+        response.raise_for_status()
+        result = response.json()
+        
+        self.logger.debug(f"查詢到 {len(result.get('todoCards', []))} 個待辦任務")
+        return result
 

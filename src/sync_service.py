@@ -50,6 +50,202 @@ class SyncService:
                 self.logger.error(f"Notion 輪詢時發生錯誤: {e}", exc_info=True)
                 await asyncio.sleep(interval)
     
+    async def start_dingtalk_polling(self):
+        """啟動釘釘輪詢服務"""
+        interval = self.config['polling']['interval']
+        self.logger.info(f"釘釘輪詢服務已啟動,間隔 {interval} 秒")
+        
+        # 記錄已處理的任務 ID 和修改時間
+        self.processed_tasks = {}
+        
+        while True:
+            try:
+                await self._poll_dingtalk_changes()
+                await asyncio.sleep(interval)
+            except Exception as e:
+                self.logger.error(f"釘釘輪詢時發生錯誤: {e}", exc_info=True)
+                await asyncio.sleep(interval)
+    
+    async def _poll_dingtalk_changes(self):
+        """輪詢釘釘的變更"""
+        self.logger.debug("開始輪詢釘釘變更...")
+        
+        try:
+            # 獲取未完成的待辦任務
+            result = self.dingtalk.list_todo_tasks(is_done=False)
+            tasks = result.get('todoCards', [])
+            
+            for task in tasks:
+                await self._sync_dingtalk_to_notion(task)
+            
+            # 獲取最近完成的待辦任務 (最多180天內)
+            result = self.dingtalk.list_todo_tasks(is_done=True)
+            tasks = result.get('todoCards', [])
+            
+            for task in tasks:
+                await self._sync_dingtalk_to_notion(task)
+                
+        except Exception as e:
+            self.logger.error(f"輪詢釘釘時發生錯誤: {e}", exc_info=True)
+    
+    async def _sync_dingtalk_to_notion(self, task: Dict[str, Any]):
+        """
+        將釘釘任務同步到 Notion
+        
+        Args:
+            task: 釘釘任務對象
+        """
+        try:
+            task_id = task.get('taskId')
+            if not task_id:
+                return
+            
+            # 檢查是否已處理過這個任務
+            task_modified_time = task.get('modifiedTime', 0)
+            if task_id in self.processed_tasks:
+                if self.processed_tasks[task_id] >= task_modified_time:
+                    # 任務沒有變更,跳過
+                    return
+            
+            # 更新已處理記錄
+            self.processed_tasks[task_id] = task_modified_time
+            
+            # 根據 sourceId 判斷是否來自 Notion
+            source_id = task.get('sourceId', '')
+            if source_id.startswith('notion_'):
+                # 來自 Notion 的任務,不需要同步回 Notion
+                self.logger.debug(f"跳過來自 Notion 的任務: {task_id}")
+                return
+            
+            # 查找 Notion 中是否已存在這個任務
+            notion_page = self._find_notion_page_by_dingtalk_id(task_id)
+            
+            if notion_page:
+                # 更新現有 Notion 頁面
+                await self._update_notion_from_dingtalk(notion_page['id'], task)
+            else:
+                # 創建新的 Notion 頁面
+                await self._create_notion_from_dingtalk(task)
+                
+        except Exception as e:
+            self.logger.error(f"同步釘釘任務 {task.get('taskId')} 到 Notion 時發生錯誤: {e}", exc_info=True)
+    
+    def _find_notion_page_by_dingtalk_id(self, dingtalk_task_id: str) -> Optional[Dict[str, Any]]:
+        """在 Notion 中查找包含指定釘釘任務 ID 的頁面"""
+        try:
+            # 在個人待辦看板中查找
+            filter_obj = {
+                "property": "釘釘任務ID",
+                "rich_text": {
+                    "equals": dingtalk_task_id
+                }
+            }
+            pages = self.notion.query_database(
+                database_id=self.notion.personal_todo_db_id,
+                filter_obj=filter_obj
+            )
+            
+            if pages:
+                return pages[0]
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"查找 Notion 頁面時發生錯誤: {e}", exc_info=True)
+            return None
+    
+    async def _create_notion_from_dingtalk(self, task: Dict[str, Any]):
+        """從釘釘任務創建 Notion 頁面"""
+        try:
+            task_id = task.get('taskId')
+            subject = task.get('subject', '無標題')
+            
+            # 轉換截止時間
+            due_time = task.get('dueTime')
+            due_date = None
+            if due_time:
+                # 釘釘的 dueTime 是毫秒時間戳
+                due_date = datetime.fromtimestamp(due_time / 1000, tz=timezone.utc).isoformat()
+            
+            # 轉換優先級
+            priority = task.get('priority', 20)
+            priority_map = {10: '高', 20: '中', 30: '低', 40: '低'}
+            priority_text = priority_map.get(priority, '中')
+            
+            # 轉換完成狀態
+            is_done = task.get('isDone', False)
+            status = '已完成' if is_done else '進行中'
+            
+            # 創建 Notion 頁面
+            properties = {
+                "任務名稱": self.notion.build_title_property(subject),
+                "狀態": self.notion.build_select_property(status),
+                "優先級": self.notion.build_select_property(priority_text),
+                "釘釘任務ID": self.notion.build_rich_text_property(task_id),
+                "上次同步": self.notion.build_date_property(
+                    datetime.now(timezone.utc).isoformat()
+                )
+            }
+            
+            if due_date:
+                properties["截止日期"] = self.notion.build_date_property(due_date)
+            
+            # 創建頁面
+            page = self.notion.create_page(
+                database_id=self.notion.personal_todo_db_id,
+                properties=properties
+            )
+            
+            self.logger.info(f"成功從釘釘創建 Notion 頁面: {subject}")
+            
+        except Exception as e:
+            self.logger.error(f"從釘釘任務 {task.get('taskId')} 創建 Notion 頁面時發生錯誤: {e}", exc_info=True)
+    
+    async def _update_notion_from_dingtalk(self, notion_page_id: str, task: Dict[str, Any]):
+        """從釘釘任務更新 Notion 頁面"""
+        try:
+            subject = task.get('subject')
+            
+            # 轉換截止時間
+            due_time = task.get('dueTime')
+            due_date = None
+            if due_time:
+                due_date = datetime.fromtimestamp(due_time / 1000, tz=timezone.utc).isoformat()
+            
+            # 轉換優先級
+            priority = task.get('priority', 20)
+            priority_map = {10: '高', 20: '中', 30: '低', 40: '低'}
+            priority_text = priority_map.get(priority, '中')
+            
+            # 轉換完成狀態
+            is_done = task.get('isDone', False)
+            status = '已完成' if is_done else '進行中'
+            
+            # 更新 Notion 頁面
+            properties = {
+                "狀態": self.notion.build_select_property(status),
+                "優先級": self.notion.build_select_property(priority_text),
+                "上次同步": self.notion.build_date_property(
+                    datetime.now(timezone.utc).isoformat()
+                )
+            }
+            
+            if subject:
+                properties["任務名稱"] = self.notion.build_title_property(subject)
+            
+            if due_date:
+                properties["截止日期"] = self.notion.build_date_property(due_date)
+            
+            self.notion.update_page(
+                page_id=notion_page_id,
+                properties=properties
+            )
+            
+            self.logger.info(f"成功從釘釘更新 Notion 頁面: {subject}")
+            
+        except Exception as e:
+            self.logger.error(f"從釘釘任務 {task.get('taskId')} 更新 Notion 頁面 {notion_page_id} 時發生錯誤: {e}", exc_info=True)
+    
     async def _poll_notion_changes(self):
         """輪詢 Notion 的變更"""
         self.logger.debug("開始輪詢 Notion 變更...")
