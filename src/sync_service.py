@@ -68,19 +68,23 @@ class SyncService:
     
     async def _poll_dingtalk_changes(self):
         """輪詢釘釘的變更"""
-        self.logger.debug("開始輪詢釘釘變更...")
+        self.logger.info("開始輪詢釘釘變更...")
         
         try:
             # 獲取未完成的待辦任務
+            self.logger.info("正在獲取釘釘未完成的待辦任務...")
             result = self.dingtalk.list_todo_tasks(is_done=False)
             tasks = result.get('todoCards', [])
+            self.logger.info(f"獲取到 {len(tasks)} 個未完成的釘釘任務")
             
             for task in tasks:
                 await self._sync_dingtalk_to_notion(task)
             
             # 獲取最近完成的待辦任務 (最多180天內)
+            self.logger.info("正在獲取釘釘已完成的待辦任務...")
             result = self.dingtalk.list_todo_tasks(is_done=True)
             tasks = result.get('todoCards', [])
+            self.logger.info(f"獲取到 {len(tasks)} 個已完成的釘釘任務")
             
             for task in tasks:
                 await self._sync_dingtalk_to_notion(task)
