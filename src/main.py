@@ -21,14 +21,18 @@ from src.logger import setup_logger
 
 async def main():
     """主函數"""
+    print("[DEBUG] main() 函數開始執行")
     # 載入配置
     config = load_config()
+    print(f"[DEBUG] 配置已加載: webhook enabled = {config.get('webhook', {}).get('enabled', 'NOT SET')}")
     
     # 設置日誌
     logger = setup_logger(config)
     logger.info("=" * 60)
     logger.info("釘釘-Notion 雙向同步系統啟動")
     logger.info("=" * 60)
+    logger.info(f"[DEBUG] Webhook 配置: {config.get('webhook', {})}")
+    logger.info(f"[DEBUG] Polling 配置: {config.get('polling', {})}")
     
     try:
         # 初始化客戶端
@@ -43,14 +47,18 @@ async def main():
         )
         
         # 初始化 Webhook 服務器
+        logger.info("[DEBUG] 準備初始化 Webhook 服務器...")
         webhook_server = WebhookServer(
             sync_service=sync_service,
             config=config['webhook']
         )
+        logger.info("[DEBUG] Webhook 服務器初始化完成")
         
         # 啟動服務
         logger.info("正在啟動 Webhook 服務器...")
+        logger.info(f"[DEBUG] 創建 Webhook 任務,端口: {config['webhook']['port']}")
         webhook_task = asyncio.create_task(webhook_server.start())
+        logger.info("[DEBUG] Webhook 任務已創建")
         
         logger.info("正在啟動 Notion 輪詢服務...")
         polling_task = asyncio.create_task(sync_service.start_notion_polling())
@@ -73,4 +81,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
