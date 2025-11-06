@@ -60,7 +60,7 @@ def _load_from_env() -> Dict[str, Any]:
         },
         'webhook': {
             'enabled': os.getenv('WEBHOOK_ENABLED', 'false').lower() == 'true',
-            'port': int(os.getenv('WEBHOOK_PORT', '8000')),
+            'port': int(os.getenv('PORT', os.getenv('WEBHOOK_PORT', '8000'))),
             'aes_key': os.getenv('WEBHOOK_AES_KEY', ''),
             'token': os.getenv('WEBHOOK_TOKEN', '')
         },
