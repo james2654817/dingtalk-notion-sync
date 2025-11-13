@@ -59,9 +59,10 @@ class WebhookServer:
             self.logger.debug(f"收到 Webhook 請求: {body}")
             
             # 驗證簽名
+            query_params = request.query
             if not self._verify_signature(body):
                 self.logger.warning("Webhook 簽名驗證失敗")
-                return web.Response(status=403, text="Invalid signature")
+            if not self._verify_signature(query_params, body):
             
             # 解密事件內容
             encrypt_data = body.get('encrypt')
@@ -87,7 +88,7 @@ class WebhookServer:
             self.logger.error(f"處理 Webhook 請求時發生錯誤: {e}", exc_info=True)
             return web.Response(status=500, text="Internal server error")
     
-    def _verify_signature(self, body: Dict[str, Any]) -> bool:
+    def _verify_signature(self, query_params, body: Dict[str, Any]) -> bool:
         """
         驗證請求簽名
         
@@ -97,12 +98,13 @@ class WebhookServer:
         Returns:
             驗證是否通過
         """
-        try:
-            msg_signature = body.get('signature')
-            timestamp = body.get('timestamp')
-            nonce = body.get('nonce')
-            encrypt = body.get('encrypt')
-            
+        # 從 URL 查詢參數獲取簽名相關參數
+        msg_signature = query_params.get('signature')
+        timestamp = query_params.get('timestamp')
+        nonce = query_params.get('nonce')
+
+        # 從請求體獲取加密數據
+        encrypt = body.get('encrypt')           
             # 計算簽名
             computed_signature = self._generate_signature(
                 timestamp, nonce, encrypt
